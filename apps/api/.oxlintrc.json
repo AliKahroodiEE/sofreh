@@ -1,0 +1,13 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "rules": {
+    "typescript/no-explicit-any": "off",
+    "typescript/no-floating-promises": "error",
+    // DTO instances are plain validated data; spreading them into Prisma
+    // inputs is intentional and loses nothing.
+    "typescript/no-misused-spread": "off"
+  },
+  "env": {
+    "node": true
+  }
+}

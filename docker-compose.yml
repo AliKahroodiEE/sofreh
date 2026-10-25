@@ -1,0 +1,94 @@
+# Sofreh — local and production stack.
+#
+#   Development (databases only, apps run on your machine):
+#     docker compose up -d postgres redis
+#
+#   Full stack behind Nginx on http://localhost:8080:
+#     docker compose --profile full up -d --build
+#
+# Copy .env.example to .env (same folder) to override the defaults below.
+name: sofreh
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-sofreh}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sofreh}
+      POSTGRES_DB: ${POSTGRES_DB:-sofreh}
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sofreh} -d ${POSTGRES_DB:-sofreh}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6380:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    profiles: ["full"]
+    build: ./apps/api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 4100
+      DATABASE_URL: postgresql://${POSTGRES_USER:-sofreh}:${POSTGRES_PASSWORD:-sofreh}@postgres:5432/${POSTGRES_DB:-sofreh}?schema=public
+      REDIS_URL: redis://redis:6379
+      # Required: the API refuses to start without it (set it in .env)
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-}
+      JWT_ACCESS_TTL: ${JWT_ACCESS_TTL:-15m}
+      OTP_DEV_MODE: ${OTP_DEV_MODE:-false}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080}
+      PUBLIC_URL: ${PUBLIC_URL:-http://localhost:8080}
+      ADMIN_PHONES: ${ADMIN_PHONES:-}
+      SEED_DEMO_DATA: ${SEED_DEMO_DATA:-false}
+    volumes:
+      - uploads:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  admin:
+    profiles: ["full"]
+    build:
+      context: ./apps/admin
+      args:
+        NEXT_PUBLIC_API_URL: ${PUBLIC_URL:-http://localhost:8080}
+    restart: unless-stopped
+    depends_on:
+      - api
+
+  nginx:
+    profiles: ["full"]
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    volumes:
+      - ./infra/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - api
+      - admin
+
+volumes:
+  pgdata:
+  redisdata:
+  uploads:

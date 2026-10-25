@@ -1,0 +1,30 @@
+# dependencies & builds
+node_modules/
+dist/
+.next/
+out/
+build/
+coverage/
+*.tsbuildinfo
+
+# secrets & local data
+.env
+.env.*
+!.env.example
+apps/api/uploads/*
+!apps/api/uploads/.gitkeep
+
+# Flutter / Dart
+apps/mobile/.dart_tool/
+apps/mobile/.flutter-plugins-dependencies
+apps/mobile/build/
+
+# editors & OS
+.DS_Store
+.idea/
+.vscode/
+*.log
+
+# local tooling
+.claude/
+PONISHA.md

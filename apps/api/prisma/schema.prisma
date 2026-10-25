@@ -1,0 +1,215 @@
+// Sofreh database schema (PostgreSQL).
+// Money is stored as integer toman. See docs/DATABASE.md for the ER diagram.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  CUSTOMER
+  ADMIN
+}
+
+enum OrderStatus {
+  PENDING // placed, waiting for the restaurant
+  CONFIRMED // accepted by the restaurant
+  PREPARING
+  DELIVERING
+  DELIVERED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  ONLINE // paid through the (simulated) payment gateway
+  CASH // paid to the courier
+}
+
+enum DiscountType {
+  PERCENT
+  FIXED
+}
+
+model User {
+  id        Int       @id @default(autoincrement())
+  phone     String    @unique
+  name      String?
+  role      Role      @default(CUSTOMER)
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  addresses Address[]
+  orders    Order[]
+  reviews   Review[]
+}
+
+model Address {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String // e.g. «خانه»، «محل کار»
+  details   String
+  lat       Float?
+  lng       Float?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model Cuisine {
+  id          Int          @id @default(autoincrement())
+  name        String
+  slug        String       @unique
+  icon        String // icon key used by the apps
+  sortOrder   Int          @default(0)
+  restaurants Restaurant[]
+}
+
+model Restaurant {
+  id              Int           @id @default(autoincrement())
+  name            String
+  slug            String        @unique
+  description     String?
+  logo            String?
+  cover           String?
+  address         String
+  rating          Float         @default(0)
+  ratingCount     Int           @default(0)
+  deliveryFee     Int
+  minOrder        Int           @default(0)
+  deliveryTimeMin Int // minutes
+  deliveryTimeMax Int
+  isOpen          Boolean       @default(true)
+  isActive        Boolean       @default(true)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  cuisines        Cuisine[]
+  sections        MenuSection[]
+  items           MenuItem[]
+  orders          Order[]
+  reviews         Review[]
+}
+
+model MenuSection {
+  id           Int        @id @default(autoincrement())
+  restaurantId Int
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  name         String
+  sortOrder    Int        @default(0)
+  items        MenuItem[]
+
+  @@index([restaurantId])
+}
+
+model MenuItem {
+  id              Int         @id @default(autoincrement())
+  restaurantId    Int
+  restaurant      Restaurant  @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  sectionId       Int
+  section         MenuSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  name            String
+  description     String?
+  price           Int
+  discountPercent Int         @default(0)
+  image           String?
+  isAvailable     Boolean     @default(true)
+  sortOrder       Int         @default(0)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  orderItems      OrderItem[]
+
+  @@index([restaurantId])
+  @@index([sectionId])
+}
+
+model Order {
+  id             Int              @id @default(autoincrement())
+  code           String           @unique // human-friendly tracking code, e.g. SF-482193
+  userId         Int
+  user           User             @relation(fields: [userId], references: [id])
+  restaurantId   Int
+  restaurant     Restaurant       @relation(fields: [restaurantId], references: [id])
+  status         OrderStatus      @default(PENDING)
+  paymentMethod  PaymentMethod
+  isPaid         Boolean          @default(false)
+  paymentRef     String?
+  subtotal       Int
+  itemsDiscount  Int              @default(0) // from per-item discounts
+  codeDiscount   Int              @default(0) // from a discount code
+  deliveryFee    Int
+  total          Int
+  discountCodeId Int?
+  discountCode   DiscountCode?    @relation(fields: [discountCodeId], references: [id])
+  addressText    String
+  note           String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  items          OrderItem[]
+  statusLogs     OrderStatusLog[]
+  review         Review?
+
+  @@index([userId])
+  @@index([restaurantId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// Snapshot of what was ordered: name and price are copied so later menu edits
+// never change past orders.
+model OrderItem {
+  id         Int       @id @default(autoincrement())
+  orderId    Int
+  order      Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItemId Int?
+  menuItem   MenuItem? @relation(fields: [menuItemId], references: [id], onDelete: SetNull)
+  name       String
+  unitPrice  Int // price actually charged per unit, after the item discount
+  quantity   Int
+
+  @@index([orderId])
+}
+
+model OrderStatusLog {
+  id        Int         @id @default(autoincrement())
+  orderId   Int
+  order     Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  status    OrderStatus
+  createdAt DateTime    @default(now())
+
+  @@index([orderId])
+}
+
+model DiscountCode {
+  id          Int          @id @default(autoincrement())
+  code        String       @unique
+  description String?
+  type        DiscountType
+  value       Int // percent (1–100) or toman
+  maxDiscount Int? // cap for percent codes
+  minOrder    Int          @default(0)
+  usageLimit  Int? // total uses; null = unlimited
+  usedCount   Int          @default(0)
+  expiresAt   DateTime?
+  isActive    Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  orders      Order[]
+}
+
+model Review {
+  id           Int        @id @default(autoincrement())
+  orderId      Int        @unique
+  order        Order      @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  userId       Int
+  user         User       @relation(fields: [userId], references: [id])
+  restaurantId Int
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  rating       Int // 1–5
+  comment      String?
+  createdAt    DateTime   @default(now())
+
+  @@index([restaurantId])
+}
