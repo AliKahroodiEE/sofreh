@@ -13,7 +13,7 @@ import { RealtimeService } from '../realtime/realtime.module.js';
 import { RedisService } from '../redis/redis.service.js';
 import { CATALOG_CACHE } from '../catalog/catalog.module.js';
 import type { CreateOrderDto, ReviewDto } from './dto/order.dto.js';
-import { canTransition, computeTotals, evaluateDiscount, priceLines } from './order-rules.js';
+import { canTransition, computeTotals, evaluateDiscount, priceLines, STATUS_LABELS } from './order-rules.js';
 
 const orderDetail = {
   items: true,
@@ -167,7 +167,7 @@ export class OrdersService {
     const order = await this.prisma.order.findUnique({ where: { id } });
     if (!order) throw new NotFoundException('سفارش پیدا نشد.');
     if (!canTransition(order.status, status)) {
-      throw new BadRequestException(`تغییر وضعیت از ${order.status} به ${status} مجاز نیست.`);
+      throw new BadRequestException(`تغییر وضعیت از «${STATUS_LABELS[order.status]}» به «${STATUS_LABELS[status]}» مجاز نیست.`);
     }
 
     const updated = await this.prisma.$transaction(async (tx) => {

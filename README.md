@@ -5,7 +5,15 @@
 > **Sofreh** is a full-stack food-delivery demo: Flutter app, NestJS + PostgreSQL + Redis API with OpenAPI docs,
 > Next.js admin panel, Docker/Nginx deployment and CI. Technical docs are in English in [`docs/`](docs).
 
-<!-- SCREENSHOTS -->
+| خانه | منوی رستوران | تکمیل سفارش | پیگیری زنده |
+|---|---|---|---|
+| ![خانه](docs/screenshots/app-home.jpg) | ![رستوران](docs/screenshots/app-restaurant.jpg) | ![سبد خرید](docs/screenshots/app-checkout.jpg) | ![پیگیری](docs/screenshots/app-tracking.jpg) |
+
+![داشبورد پنل مدیریت](docs/screenshots/admin-dashboard.jpg)
+
+| مدیریت زنده‌ی سفارش‌ها | مدیریت منو |
+|---|---|
+| ![سفارش‌ها](docs/screenshots/admin-orders.jpg) | ![منو](docs/screenshots/admin-menu.jpg) |
 
 ## امکانات
 

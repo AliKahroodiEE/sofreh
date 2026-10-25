@@ -46,7 +46,8 @@ services:
     build: ./apps/api
     restart: unless-stopped
     environment:
-      NODE_ENV: production
+      # A public demo server may use development + OTP_DEV_MODE=true; real deployments stay on production.
+      NODE_ENV: ${NODE_ENV:-production}
       PORT: 4100
       DATABASE_URL: postgresql://${POSTGRES_USER:-sofreh}:${POSTGRES_PASSWORD:-sofreh}@postgres:5432/${POSTGRES_DB:-sofreh}?schema=public
       REDIS_URL: redis://redis:6379
